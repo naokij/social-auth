@@ -27,6 +27,7 @@ type Provider interface {
 	GetName() string
 	GetPath() string
 	GetIndentify(*Token) (string, error)
+	GetUserInfo(string, *Token) (UserInfo, error)
 	CanConnect(*Token, *UserSocial) (bool, error)
 }
 
@@ -34,4 +35,12 @@ type Provider interface {
 type SocialAuther interface {
 	IsUserLogin(*context.Context) (int, bool)
 	LoginUser(*context.Context, int) (string, error)
+}
+
+// Interface of user information returned by provider api
+type UserInfo interface {
+	GetLogin() string
+	GetId() string
+	GetAvatarUrl() string
+	GetEmail() string
 }

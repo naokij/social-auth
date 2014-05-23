@@ -203,12 +203,35 @@ func (this *SocialAuth) OAuthAccess(ctx *context.Context) (redirect string, user
 
 		// check
 		var uSocial = UserSocial{}
+		var identity string
 		if ok, err := p.CanConnect(tok, &uSocial); ok {
 			// save token to session, for connect
 			tk := SocialTokenField{tok}
 			ctx.Input.CruSession.Set(this.getSessKey(social, "token"), tk.RawValue())
 			ctx.Input.CruSession.Set("social_connect", int(social))
-
+			var socialUserInfo UserInfo
+			if social == SocialGithub {
+				socialUserInfo, err = p.GetUserInfo("", tk.Token)
+				if err != nil {
+					failedErr = err
+					return
+				}
+			} else {
+				identity, err = p.GetIndentify(tk.Token)
+				if err != nil {
+					failedErr = err
+					return
+				}
+				socialUserInfo, err = p.GetUserInfo(identity, tk.Token)
+				if err != nil {
+					failedErr = err
+					return
+				}
+			}
+			ctx.Input.CruSession.Set("social_user_identity", identity)
+			ctx.Input.CruSession.Set("social_user_login", socialUserInfo.GetLogin())
+			ctx.Input.CruSession.Set("social_user_email", socialUserInfo.GetEmail())
+			ctx.Input.CruSession.Set("social_user_avatar_url", socialUserInfo.GetAvatarUrl())
 			redirect = this.ConnectRegisterURL
 
 		} else if err == nil {
@@ -271,6 +294,18 @@ func (this *SocialAuth) ConnectAndLogin(ctx *context.Context, socialType SocialT
 		if ctx.Input.CruSession.Get(tokKey) != nil {
 			ctx.Input.CruSession.Delete(tokKey)
 		}
+		if ctx.Input.CruSession.Get("social_user_identity") != nil {
+			ctx.Input.CruSession.Delete("social_user_identity")
+		}
+		if ctx.Input.CruSession.Get("social_user_login") != nil {
+			ctx.Input.CruSession.Delete("social_user_login")
+		}
+		if ctx.Input.CruSession.Get("social_user_email") != nil {
+			ctx.Input.CruSession.Delete("social_user_email")
+		}
+		if ctx.Input.CruSession.Get("social_user_avatar_url") != nil {
+			ctx.Input.CruSession.Delete("social_user_avatar_url")
+		}
 	}()
 
 	tk := SocialTokenField{}
@@ -306,6 +341,16 @@ func (this *SocialAuth) ConnectAndLogin(ctx *context.Context, socialType SocialT
 	// login user
 	loginRedirect, err := this.app.LoginUser(ctx, uid)
 	return loginRedirect, &userSocial, nil
+}
+
+//get saved token from session
+func (this *SocialAuth) GetTokenFromSession(ctx *context.Context, socialType SocialType) (tk SocialTokenField, err error) {
+	tokKey := this.getSessKey(socialType, "token")
+	value := ctx.Input.CruSession.Get(tokKey)
+	if err := tk.SetRaw(value); err != nil {
+		return tk, err
+	}
+	return tk, err
 }
 
 // create a global SocialAuth instance

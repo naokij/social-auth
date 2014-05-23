@@ -22,7 +22,7 @@ import (
 
 	"github.com/astaxie/beego/httplib"
 
-	"github.com/beego/social-auth"
+	"github.com/naokij/social-auth"
 )
 
 type Google struct {
@@ -70,6 +70,10 @@ func (p *Google) GetIndentify(tok *social.Token) (string, error) {
 	}
 
 	return fmt.Sprint(vals["id"]), nil
+}
+
+func (p *Google) GetUserInfo(identity string, tok *social.Token) (userInfo social.UserInfo, err error) {
+	return
 }
 
 var _ social.Provider = new(Google)

@@ -19,14 +19,64 @@ package apps
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/astaxie/beego/httplib"
+	"io/ioutil"
+	"time"
 
-	"github.com/beego/social-auth"
+	"github.com/naokij/social-auth"
 )
 
 type Github struct {
 	BaseProvider
+}
+
+type GithubUserInfo struct {
+	Login             string    `json:"login"`
+	Id                int64     `json:"id"`
+	AvatarUrl         string    `json:"avatar_url"`
+	GravatarId        string    `json:"gravatar_id"`
+	Url               string    `json:"url"`
+	HtmlUrl           string    `json:"html_url"`
+	FollowersUrl      string    `json:"followers_url"`
+	FollowingUrl      string    `json:"following_url"`
+	GistsUrl          string    `json:"gists_url"`
+	StarredUrl        string    `json:"starred_url"`
+	SubscriptionsUrl  string    `json:"subscriptions_url"`
+	OrganizationsUrl  string    `json:"organizations_url"`
+	ReposUrl          string    `json:"repos_url"`
+	EventsUrl         string    `json:"events_url"`
+	ReceivedEventsUrl string    `json:"received_events_url"`
+	Type              string    `json:"type"`
+	SiteAdmin         bool      `json:"site_admin"`
+	Name              string    `json:"name"`
+	Company           string    `json:"company"`
+	Blog              string    `json:"blog"`
+	Location          string    `json:"location"`
+	Email             string    `json:"email"`
+	Hireable          bool      `json:"hireable"`
+	Bio               string    `json:"bio"`
+	PublicRepos       int64     `json:"public_repos"`
+	PublicGists       int64     `json:"public_gists"`
+	Followers         int64     `json:"followers"`
+	Following         int64     `json:"following"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (u *GithubUserInfo) GetLogin() string {
+	return u.Login
+}
+
+func (u *GithubUserInfo) GetId() string {
+	return fmt.Sprintf("%d", u.Id)
+}
+
+func (u *GithubUserInfo) GetAvatarUrl() string {
+	return u.AvatarUrl
+}
+
+func (u *GithubUserInfo) GetEmail() string {
+	return u.Email
 }
 
 func (p *Github) GetType() social.SocialType {
@@ -70,6 +120,28 @@ func (p *Github) GetIndentify(tok *social.Token) (string, error) {
 	}
 
 	return fmt.Sprint(vals["id"]), nil
+}
+
+func (p *Github) GetUserInfo(identity string, tok *social.Token) (userInfo social.UserInfo, err error) {
+	uri := "https://api.github.com/user"
+	req := httplib.Get(uri)
+	req.SetTransport(social.DefaultTransport)
+	req.Header("Authorization", "Bearer "+tok.AccessToken)
+
+	resp, err := req.Response()
+	if err != nil {
+		return userInfo, err
+	}
+	defer resp.Body.Close()
+	var body []byte
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return userInfo, err
+	}
+	githubUserInfo := GithubUserInfo{}
+	userInfo = social.UserInfo(&githubUserInfo)
+	err = json.Unmarshal(body, &userInfo)
+	return userInfo, err
 }
 
 var _ social.Provider = new(Github)

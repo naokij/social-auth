@@ -17,16 +17,51 @@
 package apps
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 
 	"github.com/astaxie/beego/httplib"
 
-	"github.com/beego/social-auth"
+	"github.com/naokij/social-auth"
 )
 
 type QQ struct {
 	BaseProvider
+}
+
+type QQUserInfo struct {
+	Ret             string `json:"ret"`
+	Msg             string `json:"msg"`
+	Nickname        string `json:"nickname"`
+	Figureurl       string `json:"figureurl"`
+	Figureurl1      string `json:"figureurl_1"`
+	Figureurl2      string `json:"figureurl_2"`
+	FigureurlQQ1    string `json:"figureurl_qq_1"`
+	FigureurlQQ2    string `json:"figureurl_qq_2"`
+	Gender          string `json:"gender"`
+	IsYellowVip     int    `json:"is_yellow_vip"`
+	Vip             int    `json:"vip"`
+	YellowVipLevel  int    `json:"yellow_vip_level"`
+	Level           int    `json:"level"`
+	IsYellowYearVip int    `json:"is_yellow_year_vip"`
+}
+
+func (u *QQUserInfo) GetLogin() string {
+	return u.Nickname
+}
+
+func (u *QQUserInfo) GetId() string {
+	return ""
+}
+
+func (u *QQUserInfo) GetAvatarUrl() string {
+	return u.FigureurlQQ2
+}
+
+func (u *QQUserInfo) GetEmail() string {
+	return ""
 }
 
 func (p *QQ) GetType() social.SocialType {
@@ -61,6 +96,29 @@ func (p *QQ) GetIndentify(tok *social.Token) (string, error) {
 	}
 
 	return vals.Get("openid"), nil
+}
+
+func (p *QQ) GetUserInfo(identity string, tok *social.Token) (userInfo social.UserInfo, err error) {
+	uri := "https://api.github.com/user?"
+	data := url.Values{}
+	data.Add("access_token", tok.AccessToken)
+	data.Add("oauth_consumer_key", p.ClientSecret)
+	data.Add("openid", identity)
+	req := httplib.Get(uri + data.Encode())
+	resp, err := req.Response()
+	if err != nil {
+		return userInfo, err
+	}
+	defer resp.Body.Close()
+	var body []byte
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return userInfo, err
+	}
+	qqUserInfo := QQUserInfo{}
+	userInfo = social.UserInfo(&qqUserInfo)
+	err = json.Unmarshal(body, &userInfo)
+	return userInfo, err
 }
 
 var _ social.Provider = new(QQ)

@@ -23,7 +23,7 @@ import (
 
 	"github.com/astaxie/beego/httplib"
 
-	"github.com/beego/social-auth"
+	"github.com/naokij/social-auth"
 )
 
 type Facebook struct {
@@ -71,6 +71,10 @@ func (p *Facebook) GetIndentify(tok *social.Token) (string, error) {
 	}
 
 	return fmt.Sprint(vals["id"]), nil
+}
+
+func (p *Facebook) GetUserInfo(identity string, tok *social.Token) (userInfo social.UserInfo, err error) {
+	return
 }
 
 var _ social.Provider = new(Facebook)

@@ -17,11 +17,37 @@
 package apps
 
 import (
-	"github.com/beego/social-auth"
+	"encoding/json"
+	"github.com/astaxie/beego/httplib"
+	"github.com/naokij/social-auth"
+	"io/ioutil"
+	"net/url"
 )
 
 type Weibo struct {
 	BaseProvider
+}
+
+type WeiboUserInfo struct {
+	Id          string `json:"id"`
+	ScreenName  string `json:"screen_name"`
+	AvatarLarge string `json:"avatar_large"`
+}
+
+func (u *WeiboUserInfo) GetLogin() string {
+	return u.ScreenName
+}
+
+func (u *WeiboUserInfo) GetId() string {
+	return u.Id
+}
+
+func (u *WeiboUserInfo) GetAvatarUrl() string {
+	return u.AvatarLarge
+}
+
+func (u *WeiboUserInfo) GetEmail() string {
+	return ""
 }
 
 func (p *Weibo) GetType() social.SocialType {
@@ -38,6 +64,29 @@ func (p *Weibo) GetPath() string {
 
 func (p *Weibo) GetIndentify(tok *social.Token) (string, error) {
 	return tok.GetExtra("uid"), nil
+}
+
+func (p *Weibo) GetUserInfo(identity string, tok *social.Token) (userInfo social.UserInfo, err error) {
+	uri := "https://api.weibo.com/2/users/show.json?"
+	data := url.Values{}
+	data.Add("uid", identity)
+	data.Add("access_token", tok.AccessToken)
+	req := httplib.Get(uri + data.Encode())
+	resp, err := req.Response()
+	if err != nil {
+		return userInfo, err
+	}
+	defer resp.Body.Close()
+	var body []byte
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return userInfo, err
+	}
+	weiboUserInfo := WeiboUserInfo{}
+	userInfo = social.UserInfo(&weiboUserInfo)
+	err = json.Unmarshal(body, &userInfo)
+	return userInfo, err
+	return
 }
 
 var _ social.Provider = new(Weibo)
